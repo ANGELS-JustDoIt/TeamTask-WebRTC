@@ -108,6 +108,20 @@ function App() {
     }
   }, [joined]);
 
+  // Update screen share video when stream is available
+  useEffect(() => {
+    if (isScreenSharing && screenVideoRef.current) {
+      // If we have a local screen share stream, use it
+      if (screenStreamRef.current && !screenVideoRef.current.srcObject) {
+        console.log('Setting local screen share stream in useEffect');
+        screenVideoRef.current.srcObject = screenStreamRef.current;
+        screenVideoRef.current.play().catch(err => {
+          console.error('Error playing screen share in useEffect:', err);
+        });
+      }
+    }
+  }, [isScreenSharing]);
+
   const getLocalStream = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -235,6 +249,11 @@ function App() {
 
   const createScreenShareConnection = async (targetUserId, shouldCreateOffer = true) => {
     try {
+      // Close existing connection if any
+      if (screenPeerConnectionRef.current) {
+        screenPeerConnectionRef.current.close();
+      }
+
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -245,22 +264,43 @@ function App() {
       const pc = new RTCPeerConnection(configuration);
       screenPeerConnectionRef.current = pc;
 
-      // Add screen share stream tracks
-      if (screenStreamRef.current) {
+      // Add screen share stream tracks (only if we're sharing)
+      if (shouldCreateOffer && screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(track => {
           pc.addTrack(track, screenStreamRef.current);
+          console.log('Added screen share track:', track.kind);
         });
       }
 
       // Handle remote screen share stream
       pc.ontrack = (event) => {
-        console.log('Received remote screen share stream');
-        if (screenVideoRef.current) {
-          screenVideoRef.current.srcObject = event.streams[0];
-          screenVideoRef.current.play().catch(err => {
-            console.error('Error playing screen share video:', err);
-          });
+        console.log('Received remote screen share stream', event.streams);
+        console.log('Stream tracks:', event.streams[0]?.getTracks());
+        if (event.streams && event.streams.length > 0) {
+          const stream = event.streams[0];
+          console.log('Remote screen share stream received, setting to video element');
+          // Show screen share section when receiving remote stream
+          setIsScreenSharing(true);
+          
+          // Wait a bit for the video element to be rendered
+          setTimeout(() => {
+            if (screenVideoRef.current) {
+              console.log('Assigning remote screen share to video element');
+              screenVideoRef.current.srcObject = stream;
+              screenVideoRef.current.play().catch(err => {
+                console.error('Error playing screen share video:', err);
+              });
+              console.log('Screen share video should now be visible');
+            } else {
+              console.warn('Screen video ref not available');
+            }
+          }, 100);
         }
+      };
+
+      // Handle connection state
+      pc.onconnectionstatechange = () => {
+        console.log('Screen share connection state:', pc.connectionState);
       };
 
       // Handle ICE candidates
@@ -294,8 +334,10 @@ function App() {
 
   const handleScreenShareOffer = async (offer, senderId) => {
     try {
+      console.log('Handling screen share offer from:', senderId);
       // Create connection without sending offer (we're receiving one)
       if (!screenPeerConnectionRef.current) {
+        console.log('Creating screen share connection to receive offer');
         await createScreenShareConnection(senderId, false);
       }
 
@@ -306,11 +348,14 @@ function App() {
       }
 
       // Check connection state before setting remote description
-      if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
-        console.log('Setting remote description for screen share offer, current state:', pc.signalingState);
+      console.log('Screen share connection state:', pc.signalingState);
+      if (pc.signalingState === 'stable') {
+        console.log('Setting remote description for screen share offer');
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        console.log('Remote description set, creating answer...');
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
+        console.log('Screen share answer created and sent');
 
         if (socketRef.current) {
           socketRef.current.emit('screen-share-answer', {
@@ -320,6 +365,20 @@ function App() {
         }
       } else {
         console.warn('Cannot set remote description, connection in state:', pc.signalingState);
+        // Try to set it anyway if we're in a valid state
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          if (socketRef.current) {
+            socketRef.current.emit('screen-share-answer', {
+              target: senderId,
+              answer: answer
+            });
+          }
+        } catch (err) {
+          console.error('Failed to handle screen share offer:', err);
+        }
       }
     } catch (error) {
       console.error('Error handling screen share offer:', error);
@@ -438,36 +497,55 @@ function App() {
   const handleScreenShare = async () => {
     try {
       if (!isScreenSharing) {
+        console.log('Starting screen share...');
         // Start screen sharing
         const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
+          video: {
+            cursor: 'always',
+            displaySurface: 'monitor'
+          },
           audio: true
         });
 
+        console.log('Screen share stream obtained:', stream);
         screenStreamRef.current = stream;
 
-        // Show local screen share
-        if (screenVideoRef.current) {
-          screenVideoRef.current.srcObject = stream;
-        }
+        setIsScreenSharing(true);
 
-        // Create screen share peer connection
+        // Wait a bit for the video element to be rendered
+        setTimeout(() => {
+          if (screenVideoRef.current) {
+            console.log('Assigning local screen share to video element');
+            screenVideoRef.current.srcObject = stream;
+            screenVideoRef.current.play().catch(err => {
+              console.error('Error playing local screen share:', err);
+            });
+          } else {
+            console.warn('Screen video ref not available yet');
+          }
+        }, 100);
+
+        // Create screen share peer connection after state is set
         if (remoteUserIdRef.current) {
-          await createScreenShareConnection(remoteUserIdRef.current);
+          console.log('Creating screen share connection for:', remoteUserIdRef.current);
+          await createScreenShareConnection(remoteUserIdRef.current, true);
+        } else {
+          console.warn('No remote user ID available for screen share');
         }
 
         // Handle screen share end
         stream.getVideoTracks()[0].onended = () => {
+          console.log('Screen share ended by user');
           handleStopScreenShare();
         };
-
-        setIsScreenSharing(true);
       } else {
         handleStopScreenShare();
       }
     } catch (error) {
       console.error('Error sharing screen:', error);
-      alert('화면 공유를 시작할 수 없습니다.');
+      if (error.name !== 'NotAllowedError' && error.name !== 'AbortError') {
+        alert('화면 공유를 시작할 수 없습니다: ' + error.message);
+      }
     }
   };
 
@@ -550,7 +628,9 @@ function App() {
                   ref={screenVideoRef}
                   autoPlay
                   playsInline
+                  muted={false}
                   className="screen-video"
+                  style={{ width: '100%', maxWidth: '800px', backgroundColor: '#000' }}
                 />
               </div>
             )}

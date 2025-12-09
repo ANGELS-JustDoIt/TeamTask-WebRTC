@@ -83,7 +83,7 @@
 }
 
 .local-video {
-  transform: scaleX(-1);
+  /* No mirror transform - show normal view like remote video */
 }
 
 .video-label {
