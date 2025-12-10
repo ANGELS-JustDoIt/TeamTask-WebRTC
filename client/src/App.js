@@ -88,6 +88,8 @@ function App() {
   const [joined, setJoined] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -665,6 +667,30 @@ function App() {
     setIsScreenSharing(false);
   };
 
+  const handleToggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current
+        .getTracks()
+        .find((track) => track.kind === "video");
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
+      }
+    }
+  };
+
+  const handleToggleAudio = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current
+        .getTracks()
+        .find((track) => track.kind === "audio");
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioEnabled(audioTrack.enabled);
+      }
+    }
+  };
+
   return (
     <div className="App">
       <div className="container">
@@ -738,6 +764,24 @@ function App() {
             )}
 
             <div className="controls">
+              <button
+                onClick={handleToggleVideo}
+                className={`btn ${
+                  isVideoEnabled ? "btn-secondary" : "btn-danger"
+                }`}
+                title={isVideoEnabled ? "비디오 끄기" : "비디오 켜기"}
+              >
+                {isVideoEnabled ? "📹 비디오 끄기" : "📹 비디오 켜기"}
+              </button>
+              <button
+                onClick={handleToggleAudio}
+                className={`btn ${
+                  isAudioEnabled ? "btn-secondary" : "btn-danger"
+                }`}
+                title={isAudioEnabled ? "오디오 끄기" : "오디오 켜기"}
+              >
+                {isAudioEnabled ? "🎤 오디오 끄기" : "🎤 오디오 켜기"}
+              </button>
               <button
                 onClick={handleScreenShare}
                 className={`btn ${
