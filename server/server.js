@@ -145,6 +145,15 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Handle chat message
+  socket.on("chat-message", (data) => {
+    console.log(`Chat message from ${socket.id} to ${data.target}:`, data.message);
+    socket.to(data.target).emit("chat-message", {
+      message: data.message,
+      sender: socket.id,
+    });
+  });
+
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);

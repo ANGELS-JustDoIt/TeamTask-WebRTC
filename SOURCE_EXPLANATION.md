@@ -186,6 +186,58 @@ const handleToggleAudio = () => {
 - PeerConnection 재협상 없이 동작 (효율적)
 - 상대방에게도 즉시 반영됨
 
+**8) 텍스트 채팅 (710-750줄)**
+
+```javascript
+// 메시지 전송
+const handleSendMessage = (e) => {
+  e.preventDefault();
+  if (!messageInput.trim() || !socketRef.current || !remoteUserIdRef.current) {
+    return;
+  }
+
+  const messageData = {
+    target: remoteUserIdRef.current,
+    message: messageInput.trim(),
+  };
+
+  socketRef.current.emit("chat-message", messageData);
+
+  // 내 메시지를 채팅 목록에 추가
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: Date.now(),
+      text: messageInput.trim(),
+      sender: socketRef.current?.id || "me",
+      isOwn: true,
+      timestamp: new Date(),
+    },
+  ]);
+
+  setMessageInput("");
+};
+
+// 메시지 수신
+newSocket.on("chat-message", (data) => {
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: Date.now(),
+      text: data.message,
+      sender: data.sender,
+      isOwn: false,
+      timestamp: new Date(),
+    },
+  ]);
+});
+```
+
+- Socket.io를 통한 실시간 텍스트 메시지 교환
+- 통화 중에도 채팅 가능
+- 내 메시지와 상대방 메시지를 구분하여 표시
+- 자동 스크롤 기능으로 최신 메시지 확인
+
 ---
 
 ### 2. **server/server.js** (백엔드 시그널링 서버)
@@ -265,7 +317,26 @@ socket.on("ice-candidate", (data) => {
 - **역할**: 두 클라이언트 간 Offer/Answer/ICE Candidate를 중계
 - **중요**: 시그널링만 담당, 실제 미디어 데이터는 P2P로 직접 전송
 
-**4) 정적 파일 서빙 (63-68줄)**
+**4) 텍스트 채팅 메시지 전달 (147-155줄)**
+
+```javascript
+// 채팅 메시지 전달
+socket.on("chat-message", (data) => {
+  console.log(
+    `Chat message from ${socket.id} to ${data.target}:`,
+    data.message
+  );
+  socket.to(data.target).emit("chat-message", {
+    message: data.message,
+    sender: socket.id,
+  });
+});
+```
+
+- Socket.io를 통한 텍스트 메시지 중계
+- 실시간 메시지 전달
+
+**5) 정적 파일 서빙 (63-68줄)**
 
 ```javascript
 // React 빌드 파일 서빙 (ngrok 사용 시)
@@ -348,7 +419,13 @@ if (require("fs").existsSync(buildPath)) {
 - PeerConnection 재협상 없이 즉시 반영
 - 상대방에게도 실시간으로 반영됨
 
-### 6. **ngrok 통합**
+### 6. **텍스트 채팅**
+
+- Socket.io를 통한 실시간 메시지 교환
+- 통화 중에도 채팅 가능
+- 메시지 구분 및 타임스탬프 표시
+
+### 7. **ngrok 통합**
 
 - 프론트엔드와 백엔드를 같은 포트에서 서빙
 - 하나의 ngrok 터널로 외부 접근 가능
@@ -362,7 +439,8 @@ if (require("fs").existsSync(buildPath)) {
 3. **모바일 지원**: TURN 서버를 통한 LTE 네트워크 지원
 4. **실시간성**: Socket.io를 통한 즉각적인 메시지 교환
 5. **실시간 미디어 제어**: 통화 중 비디오/오디오 켜기/끄기 기능
-6. **확장성**: 다중 사용자 지원 가능한 구조
+6. **텍스트 채팅**: 통화 중 실시간 텍스트 메시지 교환
+7. **확장성**: 다중 사용자 지원 가능한 구조
 
 ---
 
@@ -370,9 +448,9 @@ if (require("fs").existsSync(buildPath)) {
 
 1. **에러 핸들링**: 연결 실패 시 재시도 로직
 2. **다중 사용자**: 1:N 화상 회의 지원
-3. **텍스트 채팅**: RTCDataChannel 활용
-4. **화질 조절**: 네트워크 상태에 따른 자동 조절
-5. **녹화 기능**: MediaRecorder API 활용
+3. **화질 조절**: 네트워크 상태에 따른 자동 조절
+4. **녹화 기능**: MediaRecorder API 활용
+5. **파일 전송**: RTCDataChannel을 활용한 파일 공유
 
 ---
 

@@ -90,6 +90,8 @@ function App() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [messages, setMessages] = useState([]);
+  const [messageInput, setMessageInput] = useState("");
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -101,6 +103,7 @@ function App() {
   const screenStreamRef = useRef(null);
   const remoteUserIdRef = useRef(null);
   const socketRef = useRef(null);
+  const chatMessagesRef = useRef(null);
 
   useEffect(() => {
     // Initialize socket connection
@@ -170,6 +173,21 @@ function App() {
       await handleScreenShareIce(data.candidate);
     });
 
+    // Chat message handler
+    newSocket.on("chat-message", (data) => {
+      console.log("Received chat message:", data);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          text: data.message,
+          sender: data.sender,
+          isOwn: false,
+          timestamp: new Date(),
+        },
+      ]);
+    });
+
     return () => {
       newSocket.close();
     };
@@ -201,6 +219,13 @@ function App() {
       }
     }
   }, [isScreenSharing]);
+
+  // Auto-scroll chat messages
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const getLocalStream = async () => {
     try {
@@ -586,6 +611,8 @@ function App() {
     setJoined(false);
     setIsCallActive(false);
     setIsScreenSharing(false);
+    setMessages([]);
+    setMessageInput("");
     localStreamRef.current = null;
     screenStreamRef.current = null;
     remoteUserIdRef.current = null;
@@ -691,6 +718,34 @@ function App() {
     }
   };
 
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!messageInput.trim() || !socketRef.current || !remoteUserIdRef.current) {
+      return;
+    }
+
+    const messageData = {
+      target: remoteUserIdRef.current,
+      message: messageInput.trim(),
+    };
+
+    socketRef.current.emit("chat-message", messageData);
+
+    // Add own message to chat
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        text: messageInput.trim(),
+        sender: socketRef.current?.id || "me",
+        isOwn: true,
+        timestamp: new Date(),
+      },
+    ]);
+
+    setMessageInput("");
+  };
+
   return (
     <div className="App">
       <div className="container">
@@ -762,6 +817,48 @@ function App() {
                 />
               </div>
             )}
+
+            {/* Chat Section */}
+            <div className="chat-container">
+              <h3>💬 채팅</h3>
+              <div className="chat-messages" ref={chatMessagesRef}>
+                {messages.length === 0 ? (
+                  <p className="chat-empty">메시지가 없습니다.</p>
+                ) : (
+                  messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`chat-message ${msg.isOwn ? "own" : "other"}`}
+                    >
+                      <div className="message-content">{msg.text}</div>
+                      <div className="message-time">
+                        {msg.timestamp.toLocaleTimeString("ko-KR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <form onSubmit={handleSendMessage} className="chat-input-form">
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  placeholder="메시지를 입력하세요..."
+                  className="chat-input"
+                  disabled={!remoteUserIdRef.current}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary chat-send-btn"
+                  disabled={!messageInput.trim() || !remoteUserIdRef.current}
+                >
+                  전송
+                </button>
+              </form>
+            </div>
 
             <div className="controls">
               <button

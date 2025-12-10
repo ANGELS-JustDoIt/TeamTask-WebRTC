@@ -172,6 +172,117 @@
   color: white;
 }
 
+/* Chat Styles */
+.chat-container {
+  margin-bottom: 30px;
+  border: 2px solid #e0e0e0;
+  border-radius: 15px;
+  padding: 20px;
+  background: #f9f9f9;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-container h3 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  min-height: 200px;
+  max-height: 300px;
+  padding: 10px;
+  background: white;
+  border-radius: 10px;
+}
+
+.chat-empty {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+  font-style: italic;
+}
+
+.chat-message {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-message.own {
+  align-items: flex-end;
+}
+
+.chat-message.other {
+  align-items: flex-start;
+}
+
+.message-content {
+  padding: 10px 15px;
+  border-radius: 15px;
+  max-width: 70%;
+  word-wrap: break-word;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.chat-message.own .message-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.chat-message.other .message-content {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.message-time {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 5px;
+  padding: 0 5px;
+}
+
+.chat-input-form {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 25px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.chat-input:focus {
+  border-color: #667eea;
+}
+
+.chat-input:disabled {
+  background: #f0f0f0;
+  cursor: not-allowed;
+}
+
+.chat-send-btn {
+  padding: 12px 25px;
+  border-radius: 25px;
+  white-space: nowrap;
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 20px;
@@ -195,5 +306,18 @@
 
   .btn {
     width: 100%;
+  }
+
+  .chat-container {
+    max-height: 300px;
+  }
+
+  .chat-messages {
+    max-height: 200px;
+    min-height: 150px;
+  }
+
+  .message-content {
+    max-width: 85%;
   }
 }
