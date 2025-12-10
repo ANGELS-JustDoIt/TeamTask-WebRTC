@@ -7,7 +7,7 @@ const path = require("path");
 const app = express();
 const server = http.createServer(app);
 
-// CORS configuration - allow localhost and ngrok domains
+// CORS 설정 - localhost 및 ngrok 도메인 허용
 const allowedOrigins = [
   "http://localhost:3000",
   process.env.FRONTEND_URL,
@@ -18,7 +18,7 @@ const allowedOrigins = [
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      // Allow same-origin requests (when frontend and backend are on same domain)
+      // 같은 출처 요청 허용 (프론트엔드와 백엔드가 같은 도메인에 있을 때)
       if (!origin) {
         return callback(null, true);
       }
@@ -60,20 +60,20 @@ app.use(
 );
 app.use(express.json());
 
-// Serve static files from React build (for production/ngrok)
+// React 빌드에서 정적 파일 제공 (프로덕션/ngrok용)
 const buildPath = path.join(__dirname, "../client/build");
 if (require("fs").existsSync(buildPath)) {
   app.use(express.static(buildPath));
   console.log("Serving React build from:", buildPath);
 }
 
-// Store active rooms
+// 활성 방 저장
 const rooms = new Map();
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // Join a room
+  // 방 입장
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
 
@@ -87,17 +87,17 @@ io.on("connection", (socket) => {
     console.log(`User ${socket.id} joined room ${roomId}`);
     console.log(`Room ${roomId} now has ${room.length} users`);
 
-    // Notify others in the room
+    // 방의 다른 사용자들에게 알림
     socket.to(roomId).emit("user-joined", socket.id);
 
-    // Send list of existing users to the new user
+    // 새 사용자에게 기존 사용자 목록 전송
     const otherUsers = room.filter((id) => id !== socket.id);
     if (otherUsers.length > 0) {
       socket.emit("existing-users", otherUsers);
     }
   });
 
-  // Handle WebRTC offer
+  // WebRTC offer 처리
   socket.on("offer", (data) => {
     socket.to(data.target).emit("offer", {
       offer: data.offer,
@@ -105,7 +105,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle WebRTC answer
+  // WebRTC answer 처리
   socket.on("answer", (data) => {
     socket.to(data.target).emit("answer", {
       answer: data.answer,
@@ -113,7 +113,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle ICE candidate
+  // ICE candidate 처리
   socket.on("ice-candidate", (data) => {
     socket.to(data.target).emit("ice-candidate", {
       candidate: data.candidate,
@@ -121,7 +121,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle screen share offer
+  // 화면 공유 offer 처리
   socket.on("screen-share-offer", (data) => {
     socket.to(data.target).emit("screen-share-offer", {
       offer: data.offer,
@@ -129,7 +129,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle screen share answer
+  // 화면 공유 answer 처리
   socket.on("screen-share-answer", (data) => {
     socket.to(data.target).emit("screen-share-answer", {
       answer: data.answer,
@@ -137,7 +137,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle screen share ICE candidate
+  // 화면 공유 ICE candidate 처리
   socket.on("screen-share-ice", (data) => {
     socket.to(data.target).emit("screen-share-ice", {
       candidate: data.candidate,
@@ -145,27 +145,30 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Handle chat message
+  // 채팅 메시지 처리
   socket.on("chat-message", (data) => {
-    console.log(`Chat message from ${socket.id} to ${data.target}:`, data.message);
+    console.log(
+      `Chat message from ${socket.id} to ${data.target}:`,
+      data.message
+    );
     socket.to(data.target).emit("chat-message", {
       message: data.message,
       sender: socket.id,
     });
   });
 
-  // Handle disconnect
+  // 연결 해제 처리
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
 
-    // Remove user from all rooms
+    // 모든 방에서 사용자 제거
     rooms.forEach((users, roomId) => {
       const index = users.indexOf(socket.id);
       if (index > -1) {
         users.splice(index, 1);
         socket.to(roomId).emit("user-left", socket.id);
 
-        // Clean up empty rooms
+        // 빈 방 정리
         if (users.length === 0) {
           rooms.delete(roomId);
         }
@@ -174,7 +177,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Serve React app for all non-API routes (SPA routing)
+// 모든 비-API 라우트에 React 앱 제공 (SPA 라우팅)
 app.get("*", (req, res) => {
   const buildPath = path.join(__dirname, "../client/build/index.html");
   if (require("fs").existsSync(buildPath)) {

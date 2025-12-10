@@ -2,17 +2,17 @@ import React, { useState, useEffect, useRef } from "react";
 import io from "socket.io-client";
 import "./App.css";
 
-// Server URL configuration
-// When frontend and backend are served from the same origin (via ngrok),
-// use the same origin for the server URL
+// 서버 URL 설정
+// 프론트엔드와 백엔드가 같은 출처에서 제공되는 경우 (ngrok을 통해),
+// 서버 URL에 같은 출처 사용
 const getServerUrl = () => {
-  // Use explicit environment variable if set
+  // 명시적으로 환경 변수가 설정된 경우 사용
   if (process.env.REACT_APP_SERVER_URL) {
     return process.env.REACT_APP_SERVER_URL;
   }
 
-  // If running in production build (served from backend), use same origin
-  // This works when backend serves the React build
+  // 프로덕션 빌드에서 실행 중인 경우 (백엔드에서 제공), 같은 출처 사용
+  // 백엔드가 React 빌드를 제공할 때 작동
   if (
     process.env.NODE_ENV === "production" ||
     window.location.port === "5001"
@@ -20,18 +20,18 @@ const getServerUrl = () => {
     return window.location.origin;
   }
 
-  // If frontend is on ngrok, backend should be on same ngrok URL
-  // (when backend serves the frontend)
+  // 프론트엔드가 ngrok에 있는 경우, 백엔드도 같은 ngrok URL에 있어야 함
+  // (백엔드가 프론트엔드를 제공할 때)
   const isNgrok =
     window.location.hostname.includes("ngrok") ||
     window.location.hostname.includes("ngrok-free.dev");
 
   if (isNgrok) {
-    // Backend and frontend are on same ngrok URL
+    // 백엔드와 프론트엔드가 같은 ngrok URL에 있음
     return window.location.origin;
   }
 
-  // Default to localhost for local development (separate ports)
+  // 로컬 개발을 위한 기본값 (별도 포트)
   return "http://localhost:5001";
 };
 
@@ -39,14 +39,14 @@ const SERVER_URL = getServerUrl();
 console.log("Frontend URL:", window.location.origin);
 console.log("Connecting to backend:", SERVER_URL);
 
-// ICE configuration with STUN and TURN servers for mobile connectivity
+// 모바일 연결을 위한 STUN 및 TURN 서버가 포함된 ICE 설정
 const getIceConfiguration = () => {
   const iceServers = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
   ];
 
-  // Add TURN servers if configured (required for mobile LTE)
+  // TURN 서버 추가 (모바일 LTE에 필요)
   const turnServer = process.env.REACT_APP_TURN_SERVER;
   const turnUsername = process.env.REACT_APP_TURN_USERNAME;
   const turnCredential = process.env.REACT_APP_TURN_CREDENTIAL;
@@ -58,8 +58,8 @@ const getIceConfiguration = () => {
       credential: turnCredential || undefined,
     });
   } else {
-    // Free public TURN servers (may have rate limits)
-    // For production, use a paid TURN service like Twilio, Metered, or Cloudflare
+    // 무료 공개 TURN 서버 (속도 제한이 있을 수 있음)
+    // 프로덕션에서는 Twilio, Metered, Cloudflare 같은 유료 TURN 서비스 사용 권장
     iceServers.push(
       {
         urls: "turn:openrelay.metered.ca:80",
@@ -106,16 +106,16 @@ function App() {
   const chatMessagesRef = useRef(null);
 
   useEffect(() => {
-    // Initialize socket connection
+    // 소켓 연결 초기화
     const newSocket = io(SERVER_URL);
     setSocket(newSocket);
     socketRef.current = newSocket;
 
-    // Socket event handlers
+    // 소켓 이벤트 핸들러
     newSocket.on("user-joined", (userId) => {
       console.log("User joined:", userId);
       remoteUserIdRef.current = userId;
-      // Existing user waits for offer from new user
+      // 기존 사용자는 새 사용자로부터 offer를 기다림
       createPeerConnection(userId, false);
     });
 
@@ -123,7 +123,7 @@ function App() {
       console.log("Existing users:", userIds);
       if (userIds.length > 0) {
         remoteUserIdRef.current = userIds[0];
-        // New user creates the offer
+        // 새 사용자가 offer 생성
         createPeerConnection(userIds[0], true);
       }
     });
@@ -173,7 +173,7 @@ function App() {
       await handleScreenShareIce(data.candidate);
     });
 
-    // Chat message handler
+    // 채팅 메시지 핸들러
     newSocket.on("chat-message", (data) => {
       console.log("Received chat message:", data);
       setMessages((prev) => [
@@ -193,23 +193,23 @@ function App() {
     };
   }, []);
 
-  // Update local video when stream is available
+  // 스트림이 사용 가능할 때 로컬 비디오 업데이트
   useEffect(() => {
     if (localStreamRef.current && localVideoRef.current && joined) {
       localVideoRef.current.srcObject = localStreamRef.current;
       console.log("Local video stream assigned to element");
 
-      // Ensure video plays
+      // 비디오 재생 보장
       localVideoRef.current.play().catch((err) => {
         console.error("Error playing local video:", err);
       });
     }
   }, [joined]);
 
-  // Update screen share video when stream is available
+  // 스트림이 사용 가능할 때 화면 공유 비디오 업데이트
   useEffect(() => {
     if (isScreenSharing && screenVideoRef.current) {
-      // If we have a local screen share stream, use it
+      // 로컬 화면 공유 스트림이 있으면 사용
       if (screenStreamRef.current && !screenVideoRef.current.srcObject) {
         console.log("Setting local screen share stream in useEffect");
         screenVideoRef.current.srcObject = screenStreamRef.current;
@@ -220,7 +220,7 @@ function App() {
     }
   }, [isScreenSharing]);
 
-  // Auto-scroll chat messages
+  // 채팅 메시지 자동 스크롤
   useEffect(() => {
     if (chatMessagesRef.current) {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
@@ -239,7 +239,7 @@ function App() {
       });
       localStreamRef.current = stream;
       console.log("Local stream obtained:", stream);
-      // The useEffect will handle assigning to video element
+      // useEffect가 비디오 요소에 할당 처리
       return stream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
@@ -258,14 +258,14 @@ function App() {
       const pc = new RTCPeerConnection(configuration);
       peerConnectionRef.current = pc;
 
-      // Add local stream tracks
+      // 로컬 스트림 트랙 추가
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current);
         });
       }
 
-      // Handle remote stream
+      // 원격 스트림 처리
       pc.ontrack = (event) => {
         console.log("Received remote stream");
         if (remoteVideoRef.current) {
@@ -274,7 +274,7 @@ function App() {
         }
       };
 
-      // Handle ICE candidates
+      // ICE candidate 처리
       pc.onicecandidate = (event) => {
         if (event.candidate && targetUserId && socketRef.current) {
           socketRef.current.emit("ice-candidate", {
@@ -284,7 +284,7 @@ function App() {
         }
       };
 
-      // Handle connection state changes
+      // 연결 상태 변경 처리
       pc.onconnectionstatechange = () => {
         console.log("Connection state:", pc.connectionState);
         if (
@@ -295,7 +295,7 @@ function App() {
         }
       };
 
-      // Create and send offer if we're the initiator
+      // 초기화자인 경우 offer 생성 및 전송
       if (shouldCreateOffer && targetUserId && socketRef.current) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -364,7 +364,7 @@ function App() {
     shouldCreateOffer = true
   ) => {
     try {
-      // Close existing connection if any
+      // 기존 연결이 있으면 닫기
       if (screenPeerConnectionRef.current) {
         screenPeerConnectionRef.current.close();
       }
@@ -374,7 +374,7 @@ function App() {
       const pc = new RTCPeerConnection(configuration);
       screenPeerConnectionRef.current = pc;
 
-      // Add screen share stream tracks (only if we're sharing)
+      // 화면 공유 스트림 트랙 추가 (공유 중인 경우에만)
       if (shouldCreateOffer && screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, screenStreamRef.current);
@@ -382,7 +382,7 @@ function App() {
         });
       }
 
-      // Handle remote screen share stream
+      // 원격 화면 공유 스트림 처리
       pc.ontrack = (event) => {
         console.log("Received remote screen share stream", event.streams);
         console.log("Stream tracks:", event.streams[0]?.getTracks());
@@ -391,10 +391,10 @@ function App() {
           console.log(
             "Remote screen share stream received, setting to video element"
           );
-          // Show screen share section when receiving remote stream
+          // 원격 스트림을 받을 때 화면 공유 섹션 표시
           setIsScreenSharing(true);
 
-          // Wait a bit for the video element to be rendered
+          // 비디오 요소가 렌더링될 때까지 조금 대기
           setTimeout(() => {
             if (screenVideoRef.current) {
               console.log("Assigning remote screen share to video element");
@@ -410,12 +410,12 @@ function App() {
         }
       };
 
-      // Handle connection state
+      // 연결 상태 처리
       pc.onconnectionstatechange = () => {
         console.log("Screen share connection state:", pc.connectionState);
       };
 
-      // Handle ICE candidates
+      // ICE candidate 처리
       pc.onicecandidate = (event) => {
         if (event.candidate && targetUserId && socketRef.current) {
           socketRef.current.emit("screen-share-ice", {
@@ -425,7 +425,7 @@ function App() {
         }
       };
 
-      // Create and send offer only if we're initiating
+      // 초기화하는 경우에만 offer 생성 및 전송
       if (shouldCreateOffer) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -447,7 +447,7 @@ function App() {
   const handleScreenShareOffer = async (offer, senderId) => {
     try {
       console.log("Handling screen share offer from:", senderId);
-      // Create connection without sending offer (we're receiving one)
+      // offer를 전송하지 않고 연결 생성 (받는 중)
       if (!screenPeerConnectionRef.current) {
         console.log("Creating screen share connection to receive offer");
         await createScreenShareConnection(senderId, false);
@@ -459,7 +459,7 @@ function App() {
         return;
       }
 
-      // Check connection state before setting remote description
+      // 원격 설명을 설정하기 전에 연결 상태 확인
       console.log("Screen share connection state:", pc.signalingState);
       if (pc.signalingState === "stable") {
         console.log("Setting remote description for screen share offer");
@@ -480,7 +480,7 @@ function App() {
           "Cannot set remote description, connection in state:",
           pc.signalingState
         );
-        // Try to set it anyway if we're in a valid state
+        // 유효한 상태라면 어쨌든 설정 시도
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(offer));
           const answer = await pc.createAnswer();
@@ -508,7 +508,7 @@ function App() {
         return;
       }
 
-      // Check connection state - should be 'have-local-offer' to set remote answer
+      // 연결 상태 확인 - 원격 answer를 설정하려면 'have-local-offer' 상태여야 함
       if (pc.signalingState === "have-local-offer") {
         console.log("Setting remote description for screen share answer");
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -517,8 +517,8 @@ function App() {
           "Cannot set remote answer, connection in state:",
           pc.signalingState
         );
-        // If we're in stable state, the answer might have arrived before we set local offer
-        // Try to set it anyway (this might happen in race conditions)
+        // stable 상태인 경우, 로컬 offer를 설정하기 전에 answer가 도착했을 수 있음
+        // 어쨌든 설정 시도 (경쟁 조건에서 발생할 수 있음)
         if (pc.signalingState === "stable") {
           console.log(
             "Attempting to set remote answer in stable state (race condition)"
@@ -563,7 +563,7 @@ function App() {
     if (socketRef.current) {
       socketRef.current.emit("join-room", roomId);
       setJoined(true);
-      // Small delay to ensure video element is rendered
+      // 비디오 요소가 렌더링되도록 작은 지연
       setTimeout(() => {
         if (localVideoRef.current && localStreamRef.current) {
           localVideoRef.current.srcObject = localStreamRef.current;
@@ -576,7 +576,7 @@ function App() {
   };
 
   const handleLeaveRoom = () => {
-    // Stop all tracks
+    // 모든 트랙 중지
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
@@ -584,7 +584,7 @@ function App() {
       screenStreamRef.current.getTracks().forEach((track) => track.stop());
     }
 
-    // Close peer connections
+    // 피어 연결 닫기
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
@@ -594,7 +594,7 @@ function App() {
       screenPeerConnectionRef.current = null;
     }
 
-    // Clear video elements
+    // 비디오 요소 초기화
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
@@ -622,7 +622,7 @@ function App() {
     try {
       if (!isScreenSharing) {
         console.log("Starting screen share...");
-        // Start screen sharing
+        // 화면 공유 시작
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             cursor: "always",
@@ -636,7 +636,7 @@ function App() {
 
         setIsScreenSharing(true);
 
-        // Wait a bit for the video element to be rendered
+        // 비디오 요소가 렌더링될 때까지 조금 대기
         setTimeout(() => {
           if (screenVideoRef.current) {
             console.log("Assigning local screen share to video element");
@@ -649,7 +649,7 @@ function App() {
           }
         }, 100);
 
-        // Create screen share peer connection after state is set
+        // 상태가 설정된 후 화면 공유 피어 연결 생성
         if (remoteUserIdRef.current) {
           console.log(
             "Creating screen share connection for:",
@@ -660,7 +660,7 @@ function App() {
           console.warn("No remote user ID available for screen share");
         }
 
-        // Handle screen share end
+        // 화면 공유 종료 처리
         stream.getVideoTracks()[0].onended = () => {
           console.log("Screen share ended by user");
           handleStopScreenShare();
@@ -720,7 +720,11 @@ function App() {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!messageInput.trim() || !socketRef.current || !remoteUserIdRef.current) {
+    if (
+      !messageInput.trim() ||
+      !socketRef.current ||
+      !remoteUserIdRef.current
+    ) {
       return;
     }
 
@@ -731,7 +735,7 @@ function App() {
 
     socketRef.current.emit("chat-message", messageData);
 
-    // Add own message to chat
+    // 자신의 메시지를 채팅에 추가
     setMessages((prev) => [
       ...prev,
       {
@@ -818,7 +822,7 @@ function App() {
               </div>
             )}
 
-            {/* Chat Section */}
+            {/* 채팅 섹션 */}
             <div className="chat-container">
               <h3>💬 채팅</h3>
               <div className="chat-messages" ref={chatMessagesRef}>
